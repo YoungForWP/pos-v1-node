@@ -1,3 +1,12 @@
+function buildItem(barcode, name, price, unit, amount) {
+    let item = {};
+    item.barcode = barcode;
+    item.name = name;
+    item.price = price;
+    item.unit = unit;
+    item.amount = amount;
+    return item;
+}
 function getPreprocessedInputs(inputs) {
     let processedInputs = inputs.map(item => {
         if (item.indexOf("-") > -1) {
@@ -10,24 +19,19 @@ function getPreprocessedInputs(inputs) {
     return [].concat.apply([], processedInputs);
 }
 
-function generateShoppingItems(inputs) {
+function getShoppingItems(inputs) {
     let preprocessedInputs = getPreprocessedInputs(inputs);
     let uniqueInputs = preprocessedInputs.filter((item, index, array) => array.indexOf(item) === index);
     let allItems = require('./datbase').loadAllItems();
 
     return uniqueInputs.map(item => {
-        let inputItem = {};
-        inputItem.barcode = item;
         let matchedItem = allItems.filter(each => each.barcode === item)[0];
-        inputItem.name = matchedItem.name;
-        inputItem.price = matchedItem.price;
-        inputItem.unit = matchedItem.unit;
-        inputItem.amount = preprocessedInputs.filter(each => each === item).length;
-        return inputItem;
+        let amount = preprocessedInputs.filter(each => each === item).length;
+        return buildItem(item, matchedItem.name, matchedItem.price, matchedItem.unit, amount);
     });
 }
 
-function generateFreeItems(shoppingItems) {
+function getFreeItems(shoppingItems) {
     let freeItems = [];
     let promotionItems = require('./datbase').loadPromotions();
 
@@ -37,15 +41,7 @@ function generateFreeItems(shoppingItems) {
             return promotionItems.filter(each => each.type === 'BUY_TWO_GET_ONE_FREE')
                 .map(each => each.barcodes.indexOf(item) > -1)
         })
-        .map(item => {
-            let freeItem = {};
-            freeItem.barcode = item.barcode;
-            freeItem.name = item.name;
-            freeItem.price = item.price;
-            freeItem.unit = item.unit;
-            freeItem.amount = 1;
-            freeItems.push(freeItem);
-        });
+        .map(item => freeItems.push(buildItem(item.barcode, item.name, item.price, item.unit, 1)));
     return freeItems;
 }
 
@@ -72,8 +68,8 @@ function generateFreeListInfo(freeItems) {
 }
 
 module.exports = function printInventory(inputs) {
-    let shoppingItems = generateShoppingItems(inputs);
-    let freeItems = generateFreeItems(shoppingItems);
+    let shoppingItems = getShoppingItems(inputs);
+    let freeItems = getFreeItems(shoppingItems);
     let savedMoney = calculateMoney(freeItems);
     let totalMoney = calculateMoney(shoppingItems) - savedMoney;
     let info =
